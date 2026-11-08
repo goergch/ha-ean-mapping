@@ -135,6 +135,28 @@ try {
   check('merge confirmation', r?.startsWith('„Vollmilch“ gibt es schon. Zusammenführen?'), r);
   await ev(`click('[data-action="confirm-no"]')`);
 
+  // Search typing must not replace the input element (mobile IME safety)
+  await ev(`(window.__q = $('input[data-key="q"]'), true)`);
+  await ev(`type('input[data-key="q"]', 'voll')`);
+  r = await ev(`({same: window.__q === $('input[data-key="q"]'), rows: rows()})`);
+  check('search keeps input element', r.same && r.rows.length === 1 && r.rows[0].startsWith('Vollmilch'), r);
+  await ev(`type('input[data-key="q"]', '')`);
+  await ev(`click('.row[data-name="Butter"]')`);
+  await ev(`click('[data-action="picker"]')`);
+  await ev(`(window.__p = $('input[data-key="pick"]'), true)`);
+  await ev(`type('input[data-key="pick"]', 'voll')`);
+  r = await ev(`({same: window.__p === $('input[data-key="pick"]'), opts: $$('.picker .row').map((b) => b.textContent)})`);
+  check('picker search keeps input element', r.same && JSON.stringify(r.opts) === '["Vollmilch"]', r);
+  await ev(`click('[data-action="picker"]')`);
+
+  // Merge confirmation must use fresh data (EAN arriving while dialog is open)
+  await ev(`type('input[data-key="name:Butter"]', 'Vollmilch')`);
+  await ev(`click('[data-action="save-name"]')`);
+  await ev(`window.fakeHass.callService('todo', 'add_item', {item: '4000000000777', description: 'Butter'}, {entity_id: 'todo.ean_mapping'})`);
+  await ev(`click('[data-action="confirm-yes"]')`);
+  r = await ev(`rows()`);
+  check('merge applies to EANs added while confirming', !r.some((x) => x.startsWith('Butter ')) && r.includes('Vollmilch · 9'), r);
+
   // New article
   await ev(`click('[data-action="new"]')`);
   await ev(`type('input[data-key="new:name"]', '  Haferflocken ')`);

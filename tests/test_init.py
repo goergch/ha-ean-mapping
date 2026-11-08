@@ -21,7 +21,7 @@ async def test_setup_registers_panel(hass: HomeAssistant) -> None:
     panel = hass.data["frontend_panels"][PANEL]
     cfg = panel.config["_panel_custom"]
     assert cfg["name"] == "ean-mapping-panel"
-    assert cfg["module_url"].startswith("/ean_mapping_frontend/ean-mapping-panel.js?v=0.1.0")
+    assert cfg["module_url"] == "/ean_mapping_frontend/0.1.0/ean-mapping-panel.js"
     assert panel.sidebar_title == "EAN Mapping"
     assert panel.sidebar_icon == "mdi:barcode"
     assert panel.require_admin is False
@@ -30,8 +30,17 @@ async def test_setup_registers_panel(hass: HomeAssistant) -> None:
 async def test_static_js_served(hass: HomeAssistant, hass_client) -> None:
     await _setup(hass)
     client = await hass_client()
-    resp = await client.get("/ean_mapping_frontend/ean-mapping-panel.js")
+    resp = await client.get("/ean_mapping_frontend/0.1.0/ean-mapping-panel.js")
     assert resp.status == 200
+
+
+async def test_submodules_served_under_versioned_path(hass: HomeAssistant, hass_client) -> None:
+    """Relative imports of the panel must resolve to versioned URLs (cache busting)."""
+    await _setup(hass)
+    client = await hass_client()
+    for name in ("mapping-logic.js", "todo-api.js"):
+        resp = await client.get(f"/ean_mapping_frontend/0.1.0/{name}")
+        assert resp.status == 200, name
 
 
 async def test_unload_removes_panel(hass: HomeAssistant) -> None:

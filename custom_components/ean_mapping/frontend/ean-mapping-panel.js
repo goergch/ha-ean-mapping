@@ -210,8 +210,10 @@ class EanMappingPanel extends HTMLElement {
         const plan = planRename(this._items, name, this._draft(key, name));
         if (!plan.updates.length) return;
         const target = plan.updates[0].description;
+        // Plan beim Ausführen neu berechnen: zwischen Klick und Bestätigung können
+        // weitere EANs zur alten Gruppe hinzugekommen sein (Live-Scan).
         const go = () => this._run(async () => {
-          await this._updateAll(plan.updates);
+          await this._updateAll(planRename(this._items, name, target).updates);
           this._drafts.delete(key);
           if (this._sel?.type === 'article' && this._sel.name === name) this._sel = { type: 'article', name: target };
         });
@@ -316,7 +318,14 @@ class EanMappingPanel extends HTMLElement {
     const key = e.target.dataset?.key;
     if (!key) return;
     this._drafts.set(key, e.target.value);
-    if (key === 'q' || key === 'pick') this._render();
+    // Suchfelder nicht neu erzeugen (mobile Tastaturen/IME), nur Trefferlisten ersetzen.
+    if (key === 'q') {
+      const list = this.shadowRoot.querySelector('.article-list');
+      if (list) list.innerHTML = this._renderArticleList(groupArticles(this._items), this._currentSel());
+    } else if (key === 'pick') {
+      const list = this.shadowRoot.querySelector('.picker-list');
+      if (list) list.innerHTML = this._renderPickerList(list.dataset.uid, groupArticles(this._items), list.dataset.exclude);
+    }
   }
 
   _onKey(e) {
@@ -338,8 +347,7 @@ class EanMappingPanel extends HTMLElement {
 
     const articles = groupArticles(this._items);
     const queue = reviewQueue(this._items);
-    let sel = this._sel;
-    if (sel?.type === 'article' && !articles.some((a) => a.name === sel.name)) sel = null;
+    const sel = this._currentSel(articles);
 
     root.innerHTML = `
       <style>${STYLE}</style>
@@ -381,9 +389,24 @@ class EanMappingPanel extends HTMLElement {
     root.querySelectorAll('.left, .right').forEach((n, i) => { n.scrollTop = scroll[i] || 0; });
   }
 
-  _renderLeft(articles, queue, sel) {
+  _currentSel(articles = groupArticles(this._items)) {
+    const sel = this._sel;
+    if (sel?.type === 'article' && !articles.some((a) => a.name === sel.name)) return null;
+    return sel;
+  }
+
+  _renderArticleList(articles, sel) {
     const q = this._draft('q');
     const shown = filterArticles(articles, q);
+    return `
+      ${shown.map((a) => `
+        <button class="row ${sel?.type === 'article' && sel.name === a.name ? 'active' : ''}" data-action="select" data-name="${esc(a.name)}">
+          <span>${esc(a.name)}</span><span class="count">· ${a.items.length}</span>
+        </button>`).join('')}
+      ${this._loaded && q.trim() && !shown.length ? '<div class="muted">Keine Treffer.</div>' : ''}`;
+  }
+
+  _renderLeft(articles, queue, sel) {
     const conflicts = whitespaceConflicts(articles);
     const dis = this._busy ? 'disabled' : '';
     return `
@@ -395,11 +418,7 @@ class EanMappingPanel extends HTMLElement {
         </div>`).join('')}
       <input type="text" class="search" data-key="q" placeholder="Artikel oder EAN suchen" autocomplete="off">
       ${!this._loaded ? '<div class="muted">Lade …</div>' : ''}
-      ${shown.map((a) => `
-        <button class="row ${sel?.type === 'article' && sel.name === a.name ? 'active' : ''}" data-action="select" data-name="${esc(a.name)}">
-          <span>${esc(a.name)}</span><span class="count">· ${a.items.length}</span>
-        </button>`).join('')}
-      ${this._loaded && q.trim() && !shown.length ? '<div class="muted">Keine Treffer.</div>' : ''}
+      <div class="article-list">${this._renderArticleList(articles, sel)}</div>
       <button class="link" data-action="new">+ Neuer Artikel</button>
     `;
   }
@@ -411,14 +430,19 @@ class EanMappingPanel extends HTMLElement {
     return this._renderArticle(articles.find((a) => a.name === sel.name), articles);
   }
 
+  _renderPickerList(uid, articles, exclude) {
+    const list = filterArticles(articles, this._draft('pick')).filter((a) => a.name !== exclude).slice(0, 8);
+    return `
+      ${list.map((a) => `<button class="row" data-action="pick" data-uid="${esc(uid)}" data-name="${esc(a.name)}">${esc(a.name)}</button>`).join('')}
+      ${!list.length ? '<div class="muted">Keine Artikel gefunden.</div>' : ''}`;
+  }
+
   _renderPicker(uid, articles, exclude) {
     if (this._picker?.uid !== uid) return '';
-    const list = filterArticles(articles, this._draft('pick')).filter((a) => a.name !== exclude).slice(0, 8);
     return `
       <div class="picker">
         <input type="text" data-key="pick" placeholder="Artikel suchen" autocomplete="off">
-        ${list.map((a) => `<button class="row" data-action="pick" data-uid="${esc(uid)}" data-name="${esc(a.name)}">${esc(a.name)}</button>`).join('')}
-        ${!list.length ? '<div class="muted">Keine Artikel gefunden.</div>' : ''}
+        <div class="picker-list" data-uid="${esc(uid)}" data-exclude="${esc(exclude ?? '')}">${this._renderPickerList(uid, articles, exclude)}</div>
       </div>`;
   }
 
