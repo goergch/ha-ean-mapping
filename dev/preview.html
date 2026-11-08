@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EAN Mapping – Vorschau</title>
+<style>
+  :root {
+    --primary-color: #03a9f4;
+    --primary-text-color: #212121;
+    --secondary-text-color: #727272;
+    --card-background-color: #ffffff;
+    --primary-background-color: #fafafa;
+    --divider-color: rgba(0, 0, 0, 0.12);
+    --warning-color: #ffa600;
+    --error-color: #db4437;
+  }
+  :root.dark {
+    --primary-text-color: #e1e1e1;
+    --secondary-text-color: #9b9b9b;
+    --card-background-color: #1c1c1c;
+    --primary-background-color: #111111;
+    --divider-color: rgba(225, 225, 225, 0.12);
+  }
+  html, body { margin: 0; height: 100%; background: var(--primary-background-color); font-family: Roboto, system-ui, sans-serif; }
+  .devbar { display: flex; gap: 8px; padding: 6px 12px; background: #333; color: #fff; font-size: 13px; align-items: center; }
+  ean-mapping-panel { display: block; height: calc(100% - 36px); }
+</style>
+</head>
+<body>
+<div class="devbar">
+  Vorschau (Fake-HA)
+  <button id="scan">Frischen Scan simulieren</button>
+  <button id="theme">Hell/Dunkel</button>
+</div>
+<ean-mapping-panel></ean-mapping-panel>
+<script type="module">
+  import '../custom_components/ean_mapping/frontend/ean-mapping-panel.js';
+  import { createFakeHass } from './fake-hass.js';
+
+  const hass = createFakeHass([
+    { uid: 'm1', summary: '4061462045509', description: 'Milch' },
+    { uid: 'm2', summary: '4061458003280', description: 'Milch' },
+    { uid: 'm3', summary: '4002971243802', description: 'Milch' },
+    { uid: 'b1', summary: '4061458029766', description: 'Butter' },
+    { uid: 'b2', summary: '4061458029773', description: 'Butter' },
+    { uid: 'b3', summary: '4061458029780', description: 'Butter ' },
+    { uid: 'h1', summary: '4061458074421', description: 'Haferflocken' },
+    { uid: 'u1', summary: '4015200035710' },
+    { uid: 'a1', summary: '4014400900057', description: 'Milsani Frische Vollmilch 3,5% 1l', due: '2026-11-07' },
+  ]);
+  window.fakeHass = hass;
+  const panel = document.querySelector('ean-mapping-panel');
+  panel.narrow = window.innerWidth < 700;
+  panel.hass = hass;
+  window.addEventListener('resize', () => { panel.narrow = window.innerWidth < 700; });
+  let n = 0;
+  document.getElementById('scan').onclick = () => hass.simulateScan(`40000000000${++n}`.slice(-13));
+  document.getElementById('theme').onclick = () => document.documentElement.classList.toggle('dark');
+</script>
+</body>
+</html>
