@@ -1,0 +1,11 @@
+[project]
+name = "ha-ean-mapping"
+version = "0.1.0"
+requires-python = ">=3.13"
+
+[dependency-groups]
+dev = ["pytest-homeassistant-custom-component", "home-assistant-frontend==20260128.6"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

@@ -1,0 +1,14 @@
+{
+  "domain": "ean_mapping",
+  "name": "EAN Mapping",
+  "codeowners": ["@goergch"],
+  "config_flow": true,
+  "dependencies": ["http", "frontend", "panel_custom"],
+  "documentation": "https://github.com/goergch/ha-ean-mapping",
+  "integration_type": "service",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/goergch/ha-ean-mapping/issues",
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "0.1.0"
+}
